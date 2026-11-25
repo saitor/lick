@@ -81,7 +81,8 @@ td button{padding:4px 10px;font-size:.82rem;white-space:nowrap}
 .notes b{color:var(--fg)}
 .empty{color:var(--muted)}
 [hidden]{display:none!important}
-.tm{display:grid;gap:14px}
+.tm{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)} /* 不讓紀錄表格把整欄撐寬 (手機會整頁縮小) */
+.tm>*{min-width:0}
 .tm .row{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
 .tm select{max-width:260px}
 .meter{width:140px;height:10px;border-radius:5px;background:var(--line);overflow:hidden;display:inline-block;vertical-align:middle}
@@ -92,7 +93,7 @@ td button{padding:4px 10px;font-size:.82rem;white-space:nowrap}
 #tmStreak{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
 .dot{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);display:inline-block}.dot.on{background:var(--good);border-color:var(--good)}
 .sc{color:var(--muted);font-size:.9rem;margin-left:6px}
-#tmMsg{margin:0;font-weight:500}#tmMsg[data-kind="bad"]{color:var(--bad)}#tmMsg[data-kind="ok"]{color:var(--good)}
+#tmMsg{margin:0;font-weight:500;overflow-wrap:anywhere}#tmMsg[data-kind="bad"]{color:var(--bad)}#tmMsg[data-kind="ok"]{color:var(--good)}
 #tmPhase{font-family:var(--mono);color:var(--accent)}
 #tmErrs{margin:0;padding-left:18px;display:grid;gap:4px}#tmErrs .good,.good{color:var(--good);font-weight:700}.badt{color:var(--bad);font-weight:700}
 .muted{color:var(--muted);margin:0}
@@ -100,6 +101,15 @@ table.hist{min-width:560px;font-size:.85rem}
 details.help summary{cursor:pointer;color:var(--accent);font-weight:500}
 details.help ol{margin:8px 0 0;padding-left:20px;color:var(--muted);display:grid;gap:4px;max-width:80ch}
 details.help b{color:var(--fg)}
+@media (max-width:600px){
+  .tm select{max-width:100%}
+  .tm .row{gap:8px 10px}
+  .tm .row button{padding:8px 12px}
+  #tmErrs li{overflow-wrap:anywhere}
+  .meter{width:96px}
+  table.hist{min-width:0;font-size:.8rem}
+  table.hist th,table.hist td{padding:6px;white-space:nowrap}
+}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -807,7 +817,7 @@ function drawHistory(){
   if(!L)return;const ss=LS('lickSessions').filter(s=>s.lick===L.title).slice(-8).reverse();
   const today=new Date().toDateString(),at=LS('lickAttempts').filter(a=>a.lick===L.title&&new Date(a.ts).toDateString()===today);
   const lv={loose:'寬鬆',std:'標準',strict:'嚴格'};
-  $('tmHist').innerHTML=`<p class="muted">今天這段：彈了 ${at.length} 次，全對 ${at.filter(a=>a.ok).length} 次。</p>`+(ss.length?`<table class="hist"><thead><tr><th>日期</th><th>速度</th><th>判定</th><th>結果</th><th>次數</th><th>最長連續</th></tr></thead><tbody>${ss.map(s=>`<tr><td>${new Date(s.ts).toLocaleString()}</td><td>♩${s.tempo}</td><td>${lv[s.level]||''}</td><td class="${s.result==='PASS'?'good':'badt'}">${s.result}</td><td>${s.attempts}</td><td>${s.best}</td></tr>`).join('')}</tbody></table>`:'<p class="muted">這段還沒有測驗紀錄。</p>');
+  $('tmHist').innerHTML=`<p class="muted">今天這段：彈了 ${at.length} 次，全對 ${at.filter(a=>a.ok).length} 次。</p>`+(ss.length?`<div class="scroll"><table class="hist"><thead><tr><th>日期</th><th>速度</th><th>判定</th><th>結果</th><th>次數</th><th>最長連續</th></tr></thead><tbody>${ss.map(s=>`<tr><td>${new Date(s.ts).toLocaleString([],{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})}</td><td>♩${s.tempo}</td><td>${lv[s.level]||''}</td><td class="${s.result==='PASS'?'good':'badt'}">${s.result}</td><td>${s.attempts}</td><td>${s.best}</td></tr>`).join('')}</tbody></table></div>`:'<p class="muted">這段還沒有測驗紀錄。</p>');
 }
 function exportCSV(){
   const q=v=>'"'+String(v==null?'':v).replace(/"/g,'""')+'"';
