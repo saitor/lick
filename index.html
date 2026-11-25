@@ -81,6 +81,13 @@ td button{padding:4px 10px;font-size:.82rem;white-space:nowrap}
 .notes b{color:var(--fg)}
 .empty{color:var(--muted)}
 [hidden]{display:none!important}
+.bpmbox{display:inline-flex;flex-wrap:wrap;align-items:center;gap:6px}
+.bpmbox .lbl{color:var(--muted);font-size:.92rem}
+.bpmbox button.step{padding:6px 10px;font-family:var(--mono);font-size:.85rem;min-width:44px}
+.bpmIn{width:4.2em;font:inherit;font-family:var(--mono);font-size:1.05rem;text-align:center;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg)}
+.pcts{display:flex;flex-wrap:wrap;gap:6px}
+.pcts button{padding:5px 10px;font-family:var(--mono);font-size:.82rem}
+.pcts button[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:#fff}
 .tm{display:grid;gap:14px;grid-template-columns:minmax(0,1fr)} /* 不讓紀錄表格把整欄撐寬 (手機會整頁縮小) */
 .tm>*{min-width:0}
 .tm .row{display:flex;flex-wrap:wrap;gap:10px 16px;align-items:center}
@@ -103,6 +110,7 @@ details.help ol{margin:8px 0 0;padding-left:20px;color:var(--muted);display:grid
 details.help b{color:var(--fg)}
 @media (max-width:600px){
   .tm select{max-width:100%}
+  #tempo{width:100%;flex-basis:100%}
   .tm .row{gap:8px 10px}
   .tm .row button{padding:8px 12px}
   #tmErrs li{overflow-wrap:anywhere}
@@ -133,8 +141,15 @@ details.help b{color:var(--fg)}
     <div class="controls">
       <button class="primary" id="play">▶ 播放</button>
       <button id="stop">■ 停止</button>
-      <label for="tempo">速度 <input type="range" id="tempo" min="30" max="220" value="90"><span class="bpm" id="bpmv">90</span></label>
-      <button id="slow" title="原速的 60%">慢速練習</button>
+      <div class="bpmbox">
+        <span class="lbl">速度</span>
+        <button class="step" data-step="-5" aria-label="慢 5 BPM">−5</button><button class="step" data-step="-1" aria-label="慢 1 BPM">−1</button>
+        <input type="number" class="bpmIn" id="bpmIn" min="30" max="300" inputmode="numeric" aria-label="BPM"><span class="mono2">BPM</span>
+        <button class="step" data-step="1" aria-label="快 1 BPM">+1</button><button class="step" data-step="5" aria-label="快 5 BPM">+5</button>
+        <input type="range" id="tempo" min="30" max="220" value="90" aria-label="速度滑桿">
+        <span class="mono2" id="bpmv"></span>
+      </div>
+      <div class="pcts" id="pcts" role="group" aria-label="原速百分比"></div>
       <label><input type="checkbox" id="loop"> 循環</label>
       <label><input type="checkbox" id="click" checked> 節拍器</label>
       <label><input type="checkbox" id="countin" checked> 預備拍</label>
@@ -203,7 +218,11 @@ details.help b{color:var(--fg)}
       <label for="tmLevel">判定</label><select id="tmLevel"><option value="loose">寬鬆（±80 ms、±50 音分）</option><option value="std" selected>標準（±55 ms、±35 音分）</option><option value="strict">嚴格（±35 ms、±25 音分）</option></select>
       <label for="tmTarget">連續全對</label><input type="number" id="tmTarget" min="1" max="20" value="5" style="width:4em;font:inherit;padding:6px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--fg)"> 次
       <label><input type="checkbox" id="tmDemo"> 測驗時也播放示範音</label>
-      <span class="mono2">測驗速度 = 上面的速度滑桿</span>
+      <span class="bpmbox"><span class="lbl">測驗速度</span>
+        <button class="step" data-step="-5">−5</button><button class="step" data-step="-1">−1</button>
+        <input type="number" class="bpmIn" id="tmBpm" min="30" max="300" inputmode="numeric" aria-label="測驗 BPM"><span class="mono2">BPM</span>
+        <button class="step" data-step="1">+1</button><button class="step" data-step="5">+5</button>
+        <span class="mono2" id="tmBpmPct"></span></span>
     </div>
     <div class="row">
       <button id="tmCourse">開始 30 分鐘課程</button>
@@ -514,8 +533,27 @@ function play(from,to,loop,single){
 }
 $('play').onclick=()=>{if(TM.run)tmStop(false);if(state)stopAll();else play(0,TOTAL,$('loop').checked,false);};
 $('stop').onclick=()=>{stopAll();if(L)render(0);};
-tempo.oninput=()=>$('bpmv').textContent=tempo.value;
-$('slow').onclick=()=>{if(L){tempo.value=Math.round(L.bpm*0.6);$('bpmv').textContent=tempo.value;}};
+/* ---- 速度 (BPM)：播放和測驗共用，每個 lick 記住上次用的速度 ---- */
+const PCTS=[50,60,70,80,90,100];let curBpm=0;
+const origBpm=()=>(L&&L.bpm)||90;
+function bpmMemo(v){try{const m=JSON.parse(localStorage.getItem('lickBpm')||'{}');if(v===undefined)return m[L.title];m[L.title]=v;localStorage.setItem('lickBpm',JSON.stringify(m));}catch(e){}}
+function setBpm(v,opt={}){
+  v=Math.round(+v);if(!isFinite(v)||v<=0)v=origBpm();v=Math.max(30,Math.min(300,v));
+  const old=curBpm;curBpm=v;if(v>+tempo.max)tempo.max=v;tempo.value=v; // 滑桿 input 時 tempo.value 已經是新值，所以另外記舊值
+  const o=origBpm(),pct=Math.round(v/o*100);
+  $('bpmIn').value=v;$('tmBpm').value=v;
+  $('bpmv').textContent=`原速 ♩${o} 的 ${pct}%`;$('tmBpmPct').textContent=`（原速 ${o} 的 ${pct}%）`;
+  [...$('pcts').children].forEach(b=>b.setAttribute('aria-pressed',String(Math.round(o*b.dataset.p/100)===v)));
+  if(opt.init||!L||v===old)return;
+  bpmMemo(v);
+  if(TM.run){tmStop(false);tmMsg(`速度改成 ♩${v}，測驗已停止。請重新按「練習」或「正式測驗」。`,'');}
+  else if(state&&state.from===0&&state.to===TOTAL){const lp=state.loop;stopAll();play(0,TOTAL,lp,false);}
+}
+$('pcts').innerHTML=PCTS.map(p=>`<button data-p="${p}" aria-pressed="false">${p===100?'原速':p+'%'}</button>`).join('');
+$('pcts').onclick=e=>{const b=e.target.closest('button');if(b)setBpm(origBpm()*b.dataset.p/100);};
+tempo.oninput=()=>setBpm(tempo.value);
+document.querySelectorAll('button.step').forEach(b=>b.onclick=()=>setBpm(+tempo.value+ +b.dataset.step));
+['bpmIn','tmBpm'].forEach(id=>{const i=$(id);i.onchange=()=>setBpm(i.value);i.onkeydown=e=>{if(e.key==='Enter')i.blur();};});
 
 /* ================= 測驗模式（錄音介面） ================= */
 const TM={stream:null,proc:null,chunks:[],latency:0,run:null,peak:-120,mon:null,gA:null,gB:null,tunerT:0,course:null,pre:0.3};
@@ -747,7 +785,7 @@ function tmJudge(j){
   if(ok){R.streak++;R.clean++;R.best=Math.max(R.best,R.streak);}else R.streak=0;
   drawStreak();showErrs(res);logAttempt(R,ok,res);
   if(R.kind==='test'&&R.streak>=R.target){
-    tmMsg(`PASS！連續 ${R.target} 次全對（共彈 ${R.attempts} 次）。`,'ok');logSession(R,'PASS');tmStop(true);return;}
+    tmMsg(`PASS！♩${R.tempo} 連續 ${R.target} 次全對（共彈 ${R.attempts} 次）。${R.tempo<origBpm()?`下次可以試 ♩${Math.min(origBpm(),R.tempo+5)}（原速 ${origBpm()}）。`:''}`,'ok');logSession(R,'PASS');tmStop(true);return;}
   const off=Math.round(res.meanOff*1000);
   tmMsg(ok?`第 ${R.attempts} 次全對！連續 ${R.streak} 次。`:`第 ${R.attempts} 次有 ${res.errs.length} 個錯誤，歸零。${!res.silent&&Math.abs(off)>=20?`（整體平均${off<0?'搶':'拖'} ${Math.abs(off)} ms）`:''}`,ok?'ok':'bad');
 }
@@ -867,7 +905,7 @@ function loadLick(l){
   stopAll();
   L=normalize(l);V=L.voices;ROWS=L.rows;TOTAL=L.total||L.measures.reduce((a,m)=>a+m.len,0);
   TUNE=L.tuning;NSTR=TUNE.length;MEAS=L.measures;lastRow=-1;lastDesc='';
-  tempo.max=Math.max(220,L.bpm||90);tempo.value=L.bpm||90;$('bpmv').textContent=tempo.value;
+  tempo.max=Math.max(220,L.bpm||90);setBpm(bpmMemo()||L.bpm||90,{init:true});
   if(typeof tmStop==='function')tmStop(true);drawBoard();drawTab();drawText();render(0);drawHistory();drawStreak();$('tabwrap').scrollLeft=0;
 }
 
