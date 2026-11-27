@@ -191,10 +191,20 @@ details.help b{color:var(--fg)}
       <li>打開「調音器」把吉他調準（A = 440）。判定會檢查音高，弦不準會一直被判錯。</li>
       <li>測驗時建議直接接乾淨的 DI 訊號；經過破音效果器（例如 HUSH-X）也能用，但雜音判定會比較不準。</li>
     </ol></details>
+    <details class="help" id="helpUsb" hidden><summary>第一次使用：吉他用 USB 直接接 iPhone（例：Donner HUSH X Pro）</summary><ol>
+      <li>iPhone 用 <b>Safari</b> 開 App 網址 → 分享 → <b>加入主畫面</b>，之後從主畫面的圖示開啟。</li>
+      <li>用 <b>OTG 線</b>接吉他的 USB-C 和 iPhone（一般充電線不行）。Lightning 接頭的 iPhone 用「Lightning 對 USB 3 相機轉接器」。吉他有內建電池，不用 iPhone 供電。</li>
+      <li>先把 <b>GarageBand 等錄音 App 完全關掉</b>，免得搶輸入。</li>
+      <li>「來源」選「<b>錄音介面／USB 直插</b>」→ 按「連接錄音介面」→ 允許使用麥克風。「輸入」選 USB／吉他那一個（通常 iPhone 會自動切換），「聲道」選「<b>兩個混合</b>」。</li>
+      <li>吉他音量轉中間左右，用力刷弦時電平表在 -12 ~ -6 dBFS、不要變紅。音色選<b>乾淨、少殘響和延遲</b>的，判定比較準。</li>
+      <li><b>耳機插吉他的 3.5 mm 孔</b>聽自己彈（零延遲）；節拍器從手機喇叭出來。「網頁監聽」不用勾。</li>
+      <li>按「<b>校正延遲</b>」：從第 5 下開始每下撥一次空弦（共 8 下）。手機喇叭的聲音不會進 USB，所以<b>不能</b>用「保持安靜」的方法。校正值和麥克風模式分開存。</li>
+      <li>打開「調音器」把吉他調準（A = 440）。</li>
+    </ol></details>
     <details class="help" id="helpMic" hidden><summary>第一次使用：用手機（iPhone）麥克風怎麼測？</summary><ol>
       <li>iPhone 用 <b>Safari</b> 開 App 網址 → 分享 → <b>加入主畫面</b>，之後從主畫面的圖示開啟。</li>
       <li>按「<b>連接麥克風</b>」，允許使用麥克風。</li>
-      <li><b>吉他要接音箱</b>，開到平常練習的音量；手機放在音箱前 30～50 公分，底部（麥克風）朝向音箱。不插電的電吉他太小聲，判定會不準。</li>
+      <li><b>吉他要接音箱</b>，開到平常練習的音量；手機放在音箱前 30～50 公分，底部（麥克風）朝向音箱。不插電的電吉他太小聲，判定會不準。<b>吉他有 USB 輸出</b>（例 HUSH X Pro）的話，改用 OTG 線直插更準：「來源」選「錄音介面／USB 直插」。</li>
       <li>最好戴 <b>有線耳機</b>（USB-C / Lightning）聽節拍器。<b>不要用藍牙耳機</b>：會有延遲，AirPods 還會把麥克風換成耳機上的。</li>
       <li>不戴耳機也可以：測驗時節拍器會變成很高的「滴」聲，判定時會濾掉。但這時<b>不要勾</b>「測驗時也播放示範音」。</li>
       <li>按「<b>校正延遲</b>」：用喇叭時保持安靜、不用彈，手機會聽節拍器自己算；戴耳機時跟著節拍器撥 8 下空弦。換耳機／喇叭後要重新校正。</li>
@@ -202,7 +212,7 @@ details.help b{color:var(--fg)}
       <li>環境安靜一點。房間回音大時「止音」比較容易被判錯，可以先用「寬鬆」。手機橫放畫面比較好看。</li>
     </ol></details>
     <div class="row">
-      <label for="tmSrc">來源</label><select id="tmSrc"><option value="iface">錄音介面（SSL）</option><option value="mic">手機／電腦麥克風</option></select>
+      <label for="tmSrc">來源</label><select id="tmSrc"><option value="iface">錄音介面／USB 直插</option><option value="mic">手機／電腦麥克風</option></select>
       <label for="tmIn">輸入</label><select id="tmIn"><option value="">系統預設</option></select>
       <span id="tmChWrap" style="display:inline-flex;gap:8px;align-items:center"><label for="tmCh">聲道</label><select id="tmCh"><option value="0">Input 1（左）</option><option value="1">Input 2（右）</option><option value="mix">兩個混合</option></select></span>
       <span id="tmOutWrap" hidden><label for="tmOut" style="display:inline-flex">輸出 <select id="tmOut"><option value="">系統預設</option></select></label></span>
@@ -568,14 +578,14 @@ async function tmListDevices(){
   if(!navigator.mediaDevices||!navigator.mediaDevices.enumerateDevices)return;
   const ds=await navigator.mediaDevices.enumerateDevices();
   const fillSel=(sel,kind)=>{const cur=sel.value;sel.innerHTML='<option value="">系統預設</option>'+ds.filter(d=>d.kind===kind).map(d=>`<option value="${esc(d.deviceId)}">${esc(d.label||kind)}</option>`).join('');
-    if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;else{const ssl=[...sel.options].find(o=>/ssl/i.test(o.textContent));if(ssl)sel.value=ssl.value;}};
+    if(cur&&[...sel.options].some(o=>o.value===cur))sel.value=cur;else{const ssl=[...sel.options].find(o=>/ssl/i.test(o.textContent))||(kind==='audioinput'&&[...sel.options].find(o=>/donner|hush|usb/i.test(o.textContent)));if(ssl)sel.value=ssl.value;}};
   fillSel($('tmIn'),'audioinput');fillSel($('tmOut'),'audiooutput');
   $('tmOutWrap').hidden=MOBILE||!ctx||!ctx.setSinkId;
 }
 const MOBILE=/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
 const isMic=()=>$('tmSrc').value==='mic';
 function tmApplySrc(){const m=isMic();
-  $('tmChWrap').hidden=m;$('tmMonWrap').hidden=m;$('helpIface').hidden=m;$('helpMic').hidden=!m;
+  $('tmChWrap').hidden=m;$('tmMonWrap').hidden=m;$('helpIface').hidden=m||MOBILE;$('helpUsb').hidden=m||!MOBILE;$('helpMic').hidden=!m;
   $('tmConnect').textContent=TM.proc&&TM.micOn===m?'重新連接':m?'連接麥克風':'連接錄音介面';
   if(m){$('tmMon').checked=false;if(TM.mon)TM.mon.gain.value=0;}
   try{localStorage.setItem('lickSrc',m?'mic':'iface');}catch(e){}}
@@ -752,7 +762,7 @@ function micPreset(P,mic){return mic?Object.assign({},P,{rest:P.rest-6,extra:P.e
 function unitOf(m){const den=+String(m.ts).split('/')[1]||4;return den===8?1.5:4/den;}
 function tmStart(kind){
   if(!L)return;
-  if(!TM.proc){tmMsg('請先按「連接錄音介面」。','bad');return;}
+  if(!TM.proc){tmMsg(isMic()?'請先按「連接麥克風」。':'請先按「連接錄音介面」。','bad');return;}
   tmStop(true);stopAll();ctx.resume();CLICK_HI=!!TM.micOn;
   const spb=60/+tempo.value,m0=MEAS[0],u=unitOf(m0),bar=m0.len*spb;
   const T0=ctx.currentTime+0.4+bar;
@@ -806,7 +816,7 @@ function showErrs(res){
 function clearErrMarks(){if(errG)errG.innerHTML='';}
 /* ---- 延遲校正 ---- */
 function tmCalibrate(){
-  if(!TM.proc){tmMsg('請先按「連接錄音介面」。','bad');return;}
+  if(!TM.proc){tmMsg(isMic()?'請先按「連接麥克風」。':'請先按「連接錄音介面」。','bad');return;}
   tmStop(true);stopAll();ctx.resume();CLICK_HI=false;
   const spb=60/90,T0=ctx.currentTime+0.4;
   for(let i=0;i<12;i++)clickAt(T0+i*spb,i%4===0);
@@ -873,6 +883,7 @@ $('tmPractice').onclick=()=>tmStart('practice');$('tmTest').onclick=()=>tmStart(
 $('tmCourse').onclick=()=>{TM.course={start:performance.now(),practice:20*60,test:10*60};tmMsg('30 分鐘課程開始：前 20 分鐘自由練習（可以用「練習」模式拿回饋），之後 10 分鐘正式測驗。','');};
 $('tmSrc').onchange=()=>{tmApplySrc();if(TM.proc)tmConnect();};
 try{$('tmSrc').value=localStorage.getItem('lickSrc')||(MOBILE?'mic':'iface');}catch(e){$('tmSrc').value=MOBILE?'mic':'iface';}
+if(MOBILE)$('tmCh').value='mix';  // 手機 USB 直插：不確定吉他訊號在哪一聲道，預設混合
 tmApplySrc();if(MOBILE)$('tmStoreNote').textContent='紀錄存在這支手機的瀏覽器（或主畫面 App）裡';
 $('tmCh').onchange=tmApplyChannel;$('tmIn').onchange=()=>{if(TM.proc)tmConnect();};
 $('tmOut').onchange=()=>{if(ctx&&ctx.setSinkId)ctx.setSinkId($('tmOut').value||'').catch(()=>tmMsg('無法切換輸出裝置，請在 Windows 音效設定把 SSL 設成預設輸出。','bad'));};
